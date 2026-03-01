@@ -1,0 +1,8 @@
+{
+  "name": "Lumi - AI Tutor",
+  "description": "A real-time, vision-enabled AI tutor that helps you learn by seeing what you see and talking naturally.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
