@@ -21,7 +21,7 @@ graph TD
     AudioProc -->|16kHz PCM Audio| UI
     Cam -->|Video Frames| UI
     
-    UI <-->|WebSocket (Bidi Streaming)| Gemini
+    UI <-->|"WebSocket (Bidi Streaming)"| Gemini
     
     Gemini -->|Generated Audio| UI
     UI -->|Playback| Speaker
