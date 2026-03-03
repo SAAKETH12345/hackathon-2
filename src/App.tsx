@@ -33,22 +33,28 @@ export default function App() {
   }, []);
 
   // Initialize Audio Context (must be user triggered)
-  const ensureAudioContext = () => {
+  const ensureAudioContext = async () => {
     if (!audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
         sampleRate: 24000, // Output sample rate
       });
     }
     if (audioContextRef.current.state === 'suspended') {
-      audioContextRef.current.resume();
+      await audioContextRef.current.resume();
     }
     return audioContextRef.current;
   };
 
   const connectToGemini = async () => {
+    if (!process.env.GEMINI_API_KEY) {
+      setError("API Key not found. Please set GEMINI_API_KEY in Netlify environment variables.");
+      return;
+    }
+
     try {
       setError(null);
-      ensureAudioContext();
+      const ctx = await ensureAudioContext();
+      console.log("Audio Context State:", ctx.state);
 
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       
@@ -64,11 +70,15 @@ export default function App() {
             // Handle audio output
             const audioData = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
             if (audioData) {
+              console.log("Received audio data from Gemini");
               queueAudio(audioData);
+            } else {
+                console.log("Received message without audio:", message);
             }
             
             // Handle interruption
             if (message.serverContent?.interrupted) {
+              console.log("Interrupted");
               clearAudioQueue();
             }
           },
@@ -98,6 +108,19 @@ export default function App() {
       console.error("Connection error:", err);
       setError("Failed to connect to Gemini Live.");
     }
+  };
+
+  const testAudio = async () => {
+      const ctx = await ensureAudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 440;
+      gain.gain.value = 0.1;
+      osc.start();
+      setTimeout(() => osc.stop(), 500);
+      console.log("Test audio played");
   };
 
   const disconnect = () => {
@@ -153,12 +176,35 @@ export default function App() {
     }
   };
 
+  // Helper to downsample audio to 16kHz
+  const downsampleTo16k = (buffer: Float32Array, sampleRate: number): Int16Array => {
+    if (sampleRate === 16000) {
+      const pcm16 = new Int16Array(buffer.length);
+      for (let i = 0; i < buffer.length; i++) {
+        let s = Math.max(-1, Math.min(1, buffer[i]));
+        pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      }
+      return pcm16;
+    }
+
+    const ratio = sampleRate / 16000;
+    const newLength = Math.round(buffer.length / ratio);
+    const result = new Int16Array(newLength);
+    
+    for (let i = 0; i < newLength; i++) {
+      const offset = Math.floor(i * ratio);
+      // Simple nearest neighbor for speed, can be improved with linear interpolation
+      let s = Math.max(-1, Math.min(1, buffer[offset]));
+      result[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    }
+    return result;
+  };
+
   // Audio Input Logic
   const startAudioInput = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
-          sampleRate: SAMPLE_RATE,
           channelCount: 1,
           echoCancellation: true,
           autoGainControl: true,
@@ -168,7 +214,8 @@ export default function App() {
       mediaStreamRef.current = stream;
       setIsRecording(true);
       
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: SAMPLE_RATE });
+      // Use system sample rate to avoid browser issues
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
       const source = ctx.createMediaStreamSource(stream);
       const processor = ctx.createScriptProcessor(4096, 1, 1);
       
@@ -183,12 +230,8 @@ export default function App() {
         const rms = Math.sqrt(sum / inputData.length);
         setVolume(Math.min(1, rms * 5)); 
 
-        // Convert to PCM16
-        const pcm16 = new Int16Array(inputData.length);
-        for (let i = 0; i < inputData.length; i++) {
-          let s = Math.max(-1, Math.min(1, inputData[i]));
-          pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-        }
+        // Downsample and convert to PCM16
+        const pcm16 = downsampleTo16k(inputData, ctx.sampleRate);
         
         // Base64 encode
         const uint8 = new Uint8Array(pcm16.buffer);
@@ -201,15 +244,22 @@ export default function App() {
 
         // Send to Gemini
         if (sessionRef.current) {
-            sessionRef.current.sendRealtimeInput([{
-                mimeType: "audio/pcm;rate=16000",
-                data: base64
-            }]);
+            sessionRef.current.sendRealtimeInput({
+                media: {
+                    mimeType: "audio/pcm;rate=16000",
+                    data: base64
+                }
+            });
         }
       };
 
+      // Connect to gain node with 0 gain to prevent feedback loop
+      const gainNode = ctx.createGain();
+      gainNode.gain.value = 0;
+      
       source.connect(processor);
-      processor.connect(ctx.destination);
+      processor.connect(gainNode);
+      gainNode.connect(ctx.destination);
       
       sourceRef.current = source;
       processorRef.current = processor;
@@ -275,10 +325,12 @@ export default function App() {
       
       const base64 = canvasRef.current.toDataURL('image/jpeg', 0.5).split(',')[1];
       
-      sessionRef.current.sendRealtimeInput([{
-        mimeType: "image/jpeg",
-        data: base64
-      }]);
+      sessionRef.current.sendRealtimeInput({
+        media: {
+            mimeType: "image/jpeg",
+            data: base64
+        }
+      });
 
       requestAnimationFrame(sendFrame); 
     };
@@ -298,10 +350,12 @@ export default function App() {
                 canvasRef.current.height = h;
                 ctx.drawImage(videoRef.current, 0, 0, w, h);
                 const base64 = canvasRef.current.toDataURL('image/jpeg', 0.5).split(',')[1];
-                sessionRef.current.sendRealtimeInput([{
-                    mimeType: "image/jpeg",
-                    data: base64
-                }]);
+                sessionRef.current.sendRealtimeInput({
+                    media: {
+                        mimeType: "image/jpeg",
+                        data: base64
+                    }
+                });
              }
         }
     }, 500); // 2 FPS
@@ -362,6 +416,10 @@ export default function App() {
             {isRecording ? <Mic size={24} /> : <MicOff size={24} />}
           </button>
         </div>
+
+        <button onClick={testAudio} className="text-xs text-white/30 hover:text-white underline">
+            Test Audio Output
+        </button>
 
         {/* Status / Error */}
         <div className="h-6 text-center">
