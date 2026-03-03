@@ -2,25 +2,87 @@
 
 Lumi is a next-generation live multimodal agent that you can talk to naturally. It uses the Gemini Live API to see what you see and hear what you say in real-time, functioning as an interactive AI tutor.
 
-## Features
+## Project Summary
 
+### Features
 - **Real-time Voice Interaction:** Talk to Lumi naturally with low-latency audio streaming.
 - **Visual Understanding:** Toggle the camera to let Lumi see your environment, homework, or objects.
 - **Immersive UI:** A glowing, reactive visualizer that pulses with the conversation.
 - **Interruptible:** You can interrupt Lumi at any time, just like a real person.
 
-## Technical Implementation
+### Technologies Used
+- **Frontend Framework:** React 18
+- **Build Tool:** Vite
+- **Styling:** Tailwind CSS
+- **Animations:** Motion (formerly Framer Motion)
+- **AI Integration:** Google GenAI SDK (`@google/genai`)
+- **Audio Processing:** Web Audio API (AudioContext, ScriptProcessor)
 
-- **Gemini Live API:** Uses `ai.live.connect` with `gemini-2.5-flash-native-audio-preview-09-2025` for bidirectional streaming.
-- **Audio Processing:** Captures microphone input (16kHz PCM) and plays back model audio using the Web Audio API.
-- **Video Streaming:** Captures video frames and sends them to the model for multimodal context.
-- **Tech Stack:** React, Vite, Tailwind CSS, Motion.
+### Data Sources
+- **Real-time Input:** The application uses the user's live microphone and camera feed as the primary data source.
+- **Knowledge Base:** Powered by the Gemini 2.5 Flash model's extensive training data.
 
-## How to Use
+### Findings & Learnings
+- **Real-time Latency:** Managing audio buffers and sample rate conversion (48kHz -> 16kHz) is critical for low-latency interaction.
+- **Multimodal Flow:** Synchronizing video frames with audio input creates a much more "present" feeling agent than audio alone.
+- **State Management:** Handling WebSocket connection states (connecting, connected, interrupted) requires robust error handling and UI feedback.
 
-1. **Add your API Key:** Ensure your `GEMINI_API_KEY` is set in the AI Studio Secrets panel.
-2. **Start:** Click the **Microphone** button to initialize the connection.
-3. **Talk:** Speak naturally. Lumi will respond.
-4. **See:** Click the **Video** icon to enable the camera. Lumi will describe what it sees or answer questions about it.
+---
 
-The application is ready to use!
+## Spin-up Instructions
+
+Follow these steps to run the project locally:
+
+### Prerequisites
+- Node.js (v18 or higher)
+- npm or yarn
+- A Google AI Studio API Key
+
+### Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone <your-repo-url>
+   cd lumi-ai-tutor
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Configure Environment:**
+   - Create a `.env` file in the root directory.
+   - Add your API key:
+     ```env
+     GEMINI_API_KEY=your_actual_api_key_here
+     ```
+   - *Note: For deployment (e.g., Netlify), add this variable in the platform's dashboard.*
+
+4. **Run the development server:**
+   ```bash
+   npm run dev
+   ```
+
+5. **Open the app:**
+   - Visit `http://localhost:3000` (or the port shown in your terminal).
+
+---
+
+## Google Cloud Deployment Proof
+
+This application's backend intelligence is fully powered by **Google Cloud**.
+
+- **Code Evidence:** The connection to Google Cloud's Gemini API is established in `src/App.tsx`.
+- **API Usage:** We use the `GoogleGenAI` client to connect to the `gemini-2.5-flash-native-audio-preview-09-2025` model via WebSockets.
+
+**Key Code Snippet (`src/App.tsx`):**
+```typescript
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const session = await ai.live.connect({
+  model: "gemini-2.5-flash-native-audio-preview-09-2025",
+  // ... configuration
+});
+```
+
+This demonstrates direct usage of Google Cloud's Generative AI infrastructure.
