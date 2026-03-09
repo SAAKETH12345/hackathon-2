@@ -94,6 +94,7 @@ export default function App() {
           }
         },
         config: {
+          systemInstruction: "Your name is Lumi. You are a helpful, friendly, and concise AI tutor. You can see the user's camera feed and hear their voice. Respond naturally when they call you 'Lumi'.",
           responseModalities: [Modality.AUDIO],
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: "Zephyr" } },
