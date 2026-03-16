@@ -42,7 +42,7 @@ Follow these steps to run the project locally:
 
 1. **Clone the repository:**
    ```bash
-   git clone <your-repo-url>
+   git clone <https://github.com/SAAKETH12345/hackathon-2.git>
    cd lumi-ai-tutor
    ```
 
@@ -52,10 +52,10 @@ Follow these steps to run the project locally:
    ```
 
 3. **Configure Environment:**
-   - Create a `.env` file in the root directory.
+   - Create a `example.env` file in the root directory.
    - Add your API key:
      ```env
-     GEMINI_API_KEY=your_actual_api_key_here
+     GEMINI_API_KEY=AIzaSyAwYGZhwp6mOPm3H5EBNLFzlZ0TURk0Mw0
      ```
    - *Note: For deployment (e.g., Netlify), add this variable in the platform's dashboard.*
 
