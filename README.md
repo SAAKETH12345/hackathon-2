@@ -55,7 +55,7 @@ Follow these steps to run the project locally:
    - Create a `example.env` file in the root directory.
    - Add your API key:
      ```env
-     GEMINI_API_KEY=AIzaSyAwYGZhwp6mOPm3H5EBNLFzlZ0TURk0Mw0
+     GEMINI_API_KEY="your actual API key here"
      ```
    - *Note: For deployment (e.g., Netlify), add this variable in the platform's dashboard.*
 
